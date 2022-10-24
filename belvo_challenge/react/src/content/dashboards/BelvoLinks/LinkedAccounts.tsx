@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, useRef } from 'react'
+import { FC, useState, useEffect } from 'react'
 import PropTypes from 'prop-types';
 import {
   Button,
@@ -21,6 +21,7 @@ import {
   DialogContent,
   Dialog,
   TextField,
+  Skeleton,
 } from '@mui/material';
 import { blue } from '@mui/material/colors';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
@@ -95,32 +96,27 @@ const CardAddAction = styled(Card)(
 `
 );
 
-let credentials: any = {}
 const LinkedAccounts: FC = () => {
-  //const [links, setLinks] = useState<any>({})
-  const [openModal, setOpenModal] = useState(false);
-  const [selectedInstitution, setSelectedInstitution] = useState<any>({});
+  useScript('https://cdn.belvo.io/belvo-widget-1-stable.js');
+  const [widgetAccessToken, setWidgetAccessToken] = useState<string | null>(null)
   const [institutionList, setInstitutionList] = useState<any>([]);
+  const [activeLinks, setActiveLinks] = useState<any>([]);
 
   const handleClickOpen = () => {
-    console.log("Open modal")
-    setOpenModal(true);
-  };
-
-  const handleClose = (institution) => {
-    console.log("Close modal", institution)
-    setOpenModal(false);
-    setSelectedInstitution(institution)
-    credentials = {}
+    createWidget()
   };
 
   useEffect(() => {
-    queryAllInstitutions()
+    async function init() {
+      await queryAllInstitutions()
+      await queryAllLinks()
+      await getWidgetAccessToken()
+    }
+    init()
   }, [])
 
   async function queryAllInstitutions() {
     const url = `${BASE_URL}/institutions/list`
-
     await fetch(url, {
       method: 'GET',
       mode: 'cors',
@@ -131,12 +127,48 @@ const LinkedAccounts: FC = () => {
       .then((response) => response.json())
       .then((data) => {
         console.log("queryAllInstitutions", data)
-        
-        setInstitutionList(data.results.sort((a,b)=>{return a.country_code.localeCompare(b.country_code)}))
+        setInstitutionList(data)
       })
   }
 
-  async function registerLink() {
+  async function queryAllLinks() {
+    const url = `${BASE_URL}/links/getall`
+
+    await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("queryAllLinks", data)
+        setActiveLinks(data)
+      })
+  }
+
+  async function storeLink(link: string, institution: string) {
+    const url = `${BASE_URL}/links/store`
+
+    await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        link,
+        institution
+      })
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("storeLink", data)
+      })
+  }
+
+  /*async function registerLink() {
     const url = `${BASE_URL}/links/register`
 
     await fetch(url, {
@@ -154,52 +186,99 @@ const LinkedAccounts: FC = () => {
       .then((data) => {
         console.log("registerLink", data)
       })
-  }
-
-  SimpleDialog.propTypes = {
-    onClose: PropTypes.func.isRequired,
-    open: PropTypes.bool.isRequired,
-    selectedValue: PropTypes.object.isRequired
-  };
+  }*/
   
-  function SimpleDialog(props) {
-    const { onClose, selectedValue, open } = props;
+  function useScript(src) {
+    useEffect(
+        () => {
+          // Create script
+          const node = document.createElement('script');
+          node.src = src;
+          node.type = 'text/javascript';
+          node.async = true;
+          //node.onload = createWidget
+          // Add script to document body
+          document.body.appendChild(node);
+        },
+        [src] // Only re-run effect if script src changes
+    )
+}
 
-    const handleClose = () => {
-      onClose(selectedValue);
-    };
-
-    const handleListItemClick = (value) => {
-      onClose(value);
-    };
-
-    return (
-      <Dialog fullWidth={true} onClose={handleClose} open={open}>
-        <DialogTitle>Select institution to link</DialogTitle>
-        <DialogContent dividers>
-          <List sx={{ pt: 0 }}>
-            {institutionList.map((institution) => (
-              <ListItem
-                button
-                onClick={() => handleListItemClick(institution)}
-                key={institution.id}
-              >
-                <ListItemAvatar>
-                  <Avatar alt={institution.display_name} src={institution.icon_logo} sx={{ bgcolor: blue[100], color: blue[600] }}>
-                    {institution.display_name[0]}
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText primary={`${institution.display_name} - ID: [${institution.id}]`} />
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-      </Dialog>
-    );
+  async function getWidgetAccessToken() {
+  // Make sure to change /get-access-token to point to your server-side.
+    await fetch(`${BASE_URL}/belvo/token`, {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+        }) 
+        .then(response => response.json())
+        .then((data) => {
+          console.log("GetWidgetAccessToken:", data)
+          setWidgetAccessToken(data)
+        })
+        .catch(error => {
+          console.error('GetWidgetAccessToken Error:', error)
+          setWidgetAccessToken(null)
+      })
   }
- 
+
+  async function removeLink(linkId: string) {
+  // Make sure to change /get-access-token to point to your server-side.
+    await fetch(`${BASE_URL}/links/remove/${linkId}`, {
+            method: 'DELETE',
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+        }) 
+        .then(response => response.json())
+        .then((data) => {
+          console.log("removeLink:", data)
+          queryAllLinks()
+        })
+        .catch(error => {
+          console.error('RemoveLink error:', error)
+          queryAllLinks()
+      })
+  }  
+
+  async function createWidget() {
+    const callback = () => { }
+    
+    const successCallbackFunction = (link, institution) => {
+      console.log("successCallbackFunction", link, institution)
+      storeLink(link, institution)
+      getWidgetAccessToken()
+      queryAllLinks()
+      // Do something with the link and institution,
+      // such as associate it with your registered user in your database.
+    }
+    const onExitCallbackFunction = (data) => {
+      console.log("onExitCallbackFunction", data)
+      // Do something with the exit data.
+    }
+    const onEventCallbackFunction = (data) => {
+      console.log("onEventCallbackFunction", data)
+        // Do something with the exit data.
+    }
+    const config = {
+
+        // Add your startup configuration here.
+        locale: 'en',
+        callback: (link, institution) => successCallbackFunction(link, institution),
+        onExit: (data) => onExitCallbackFunction(data),
+        onEvent: (data) => onEventCallbackFunction(data)
+    }
+    if (widgetAccessToken) {
+      window.belvoSDK.createWidget(widgetAccessToken, config).build()
+    }
+  }
+
   return (
     <>
+      <div id="belvo"/>
       <Box
         display="flex"
         alignItems="center"
@@ -209,105 +288,91 @@ const LinkedAccounts: FC = () => {
         }}
       >
         <Typography variant="h3">Linked Accounts</Typography>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<AddTwoToneIcon fontSize="small" />}
-          onClick={handleClickOpen}
-        >
-          Link new account
-        </Button>
       </Box>
       <Grid container spacing={3}>
         {
-          selectedInstitution.id ? (
+          activeLinks.map((link) => {
+            if (link === null) {
+              return ''
+            }
+            const currInstitution = institutionList.filter((el) => {
+              return el.name === link.institution
+            })[0]
+
+            if(currInstitution === null){
+              return ''
+            }
+            console.log("currInstitution", currInstitution, link)
+            return(
+              <Grid key={link.id} xs={12} sm={6} md={3} item>
+                <Card
+                  sx={{
+                    px: 1
+                  }}
+                >
+                  <CardContent>
+                    <AvatarWrapper>
+                      <img
+                        alt={currInstitution.display_name}
+                        src={currInstitution.icon_logo}
+                      />
+                    </AvatarWrapper>
+                    <Typography variant="h5" noWrap>
+                      {`${currInstitution.display_name} [${currInstitution.id}]`}
+                    </Typography>
+                    <Typography variant="subtitle1" noWrap>
+                      {link.access_mode}
+                    </Typography>
+                    <Typography variant="subtitle2" noWrap>
+                      {`Created: ${new Date(link.created_at).toDateString()}`}
+                    </Typography>
+                    <Typography variant="subtitle2" noWrap>
+                      {`Last Access: ${new Date(link.last_accessed_at).toDateString()}`}
+                    </Typography>
+                    <Grid container spacing={3}>
+                      <Grid sm item>
+                        <Button fullWidth variant="outlined">
+                          Details
+                        </Button>
+                      </Grid>
+                      <Grid sm item>
+                        <Button onClick={() => removeLink(link.id)} fullWidth variant="contained">
+                          Remove
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )
+          })
+        }
+          {widgetAccessToken ? (
             <Grid xs={12} sm={6} md={3} item>
-              <Card
-                sx={{
-                  px: 1
-                }}
-              >
-                <CardContent>
-                  <AvatarWrapper>
-                    <img
-                      alt={selectedInstitution.display_name}
-                      src={selectedInstitution.icon_logo}
-                    />
-                  </AvatarWrapper>
-                  <Typography variant="h5" noWrap>
-                    {selectedInstitution.display_name}
-                  </Typography>
-                  <Typography variant="subtitle1" noWrap>
-                    {selectedInstitution.id}
-                  </Typography>
-                  <Box
+              <Tooltip arrow title="Click to link new account">
+                <CardAddAction onClick={handleClickOpen}>
+                  <CardActionArea
                     sx={{
-                      '& .MuiTextField-root': { mb: 1, mt: 1, width: '24ch' }
+                      px: 1
                     }}
                   >
-                    {selectedInstitution.form_fields.map((field, index) => {
-                      if (field.type === 'select') {
-                        return (
-                        <TextField
-                          required
-                          id={`form-field-${index}`}
-                          label={field.label}
-                          select
-                          key={`form-field-${index}`}
-                          onChange={(e) => { credentials[field.name] = e.target.value }}
-                        >                       
-                          {field.values.map((option, subIndex) => (
-                            <MenuItem key={`option-${option.code}-${subIndex}`} value={option.code}>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </TextField>)
-                      } else {
-                        return (<TextField
-                          required
-                          id={`form-field-${index}`}
-                          label={field.label}
-                          type={field.type}
-                          key={`form-field-${index}`}
-                          onChange={(e) => { credentials[field.name] = e.target.value }}
-                        />)
-                      }
- 
-                    })}
-                    <Button
-                      variant="contained"
-                      onClick={registerLink}
-                    >
-                      Submit
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
+                    <CardContent>
+                      <AvatarAddWrapper>
+                        <AddTwoToneIcon fontSize="large" />
+                      </AvatarAddWrapper>
+                    </CardContent>
+                  </CardActionArea>
+                </CardAddAction>
+              </Tooltip>
             </Grid>
-          ) : ('')
-        }
-        <Grid xs={12} sm={6} md={3} item>
-          <Tooltip arrow title="Click to link new account">
-            <CardAddAction onClick={handleClickOpen}>
-              <CardActionArea
-                sx={{
-                  px: 1
-                }}
-              >
-                <CardContent>
-                  <AvatarAddWrapper>
-                    <AddTwoToneIcon fontSize="large" />
-                  </AvatarAddWrapper>
-                </CardContent>
-              </CardActionArea>
-            </CardAddAction>
-          </Tooltip>
-        </Grid>
-        <SimpleDialog
-          selectedValue={selectedInstitution}
-          open={openModal}
-          onClose={handleClose}
-        />
+          ) : (
+            <Grid xs={12} sm={6} md={3} item>
+              <Skeleton sx={{
+                height: "100%",
+                width: "100%"
+              }} />
+            </Grid>
+          )}
       </Grid>
     </>
   );

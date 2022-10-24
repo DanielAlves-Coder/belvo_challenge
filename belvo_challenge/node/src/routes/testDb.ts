@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import mysql from 'mysql'
+import mysql from 'mysql2'
 import {
   MODE,
   SQL
@@ -13,7 +13,7 @@ const {
 } = SQL[MODE]
 
 const router = Router()
-let connection: mysql.Connection = mysql.createConnection({
+let dbConnection: mysql.Connection = mysql.createConnection({
     host: IP,
     user: SID,
     password: SP,
@@ -21,8 +21,8 @@ let connection: mysql.Connection = mysql.createConnection({
   });
 
 router.get("/", (req: Request, res: Response) => {
-  connection.connect()
-  connection.query('SELECT * FROM users',
+  dbConnection.connect()
+  dbConnection.query('SELECT * FROM users',
     function (error: any, results: any, fields: any) {
       if (error) {
         res.status(500).json(error);
@@ -31,7 +31,7 @@ router.get("/", (req: Request, res: Response) => {
       console.log('Query result: ', results);
       res.status(200).json(results);
     });
-  connection.end();
+  dbConnection.end();
 } );
 
 export default router;

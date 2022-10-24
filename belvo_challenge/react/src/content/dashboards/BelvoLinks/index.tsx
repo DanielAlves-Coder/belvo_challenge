@@ -26,9 +26,6 @@ function BelvoLinksDashboard() {
           alignItems="stretch"
           spacing={4}
         >
-          <Grid item xs={12}>
-            <AccountBalance />
-          </Grid>
           <Grid item lg={12} xs={12}>
             <LinkedAccounts />
           </Grid>
