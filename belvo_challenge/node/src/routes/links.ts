@@ -81,16 +81,16 @@ async function getLinkDetails(linkId: string) {
   }
 }
 
-router.get("/details/:id", (req: Request, res: Response) => {
-  console.log(req.body)
+router.get("/details/:link_id?", (req: Request, res: Response) => {
+  //console.log(req.body)
 
-  if(req.params.id === ""){
-    res.status(500).send({ message: "Missing link id" });
+  if(req.params.link_id === ""){
+    res.status(500).send({ message: "Missing link_id" });
   }
 
   belvoClient.connect()
   .then(function () {
-    belvoClient.links.detail(req.params.id ?? "")
+    belvoClient.links.detail(req.params.link_id ?? "")
       .then((response) => {
         res.json(response);
       })
@@ -102,19 +102,19 @@ router.get("/details/:id", (req: Request, res: Response) => {
   });
 });
 
-router.delete("/remove/:id", (req: Request, res: Response) => {
-  console.log(req.body)
+router.delete("/remove/:link_id?", (req: Request, res: Response) => {
+  //console.log(req.body)
 
-  if(req.params.id === ""){
-    res.status(500).send({ message: "Missing link id" });
+  if(req.params.link_id === ""){
+    res.status(500).send({ message: "Missing link_id" });
   }
 
   belvoClient.connect()
   .then(function () {
-    belvoClient.links.delete(req.params.id ?? "")
+    belvoClient.links.delete(req.params.link_id ?? "")
       .then((response) => {
         const sqlQuery = 'DELETE FROM links WHERE user_id = ? AND external_link_id = ?'
-        dbConnection.query(sqlQuery,[1, req.params.id]);
+        dbConnection.query(sqlQuery,[1, req.params.link_id]);
         res.json(response);
       })
       .catch((error) => {

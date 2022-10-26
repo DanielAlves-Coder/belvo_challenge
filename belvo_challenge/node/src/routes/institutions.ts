@@ -18,24 +18,39 @@ const belvoClient = new belvo(
   MODE
 );
 
-router.get("/list/:id?", (req: Request, res: Response) => {
+router.get("/list/:institution_id?", (req: Request, res: Response) => {
 
-  belvoClient.connect()
-  .then(function () {
-    belvoClient.institutions.list(/*{
-      filters: {
-        country_code: "BR"
-      }
-    }*/)
-      .then((response) => {
-        res.json(response);
-      })
-      .catch((error) => {
-        res.status(500).send({
-          message: error.message
-        });
+  if (req.params.institution_id === "") {
+    belvoClient.connect()
+      .then(function () {
+        belvoClient.institutions.detail(req.params.institution_id ?? "")
+          .then((response) => {
+            res.json(response);
+          })
+          .catch((error) => {
+            res.status(500).send({
+              message: error.message
+            });
+          });
       });
-  });
+  } else {
+    belvoClient.connect()
+      .then(function () {
+        belvoClient.institutions.list(/*{
+        filters: {
+          country_code: "BR"
+        }
+      }*/)
+          .then((response) => {
+            res.json(response);
+          })
+          .catch((error) => {
+            res.status(500).send({
+              message: error.message
+            });
+          });
+      });
+  }
   /*const url = `${BASE_URL}/api/institutions/${req.params.id ?? ""}?country_code=BR`
   axios.get(url, {
     headers: {

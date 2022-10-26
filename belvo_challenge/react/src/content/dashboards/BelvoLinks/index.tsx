@@ -1,15 +1,17 @@
+import { FC, useState, useEffect } from 'react'
 import { Helmet } from 'react-helmet-async';
 import PageHeader from './PageHeader';
 import PageTitleWrapper from 'src/components/PageTitleWrapper';
 import { Container, Grid } from '@mui/material';
 import Footer from 'src/components/Footer';
 
-import AccountBalance from './AccountBalance';
-import LinkedAccounts from './LinkedAccounts';
-import AccountSecurity from './AccountSecurity';
-import WatchList from './WatchList';
+import Accounts from './Accounts';
+import Links from './Links';
 
-function BelvoLinksDashboard() {
+const BelvoLinksDashboard: FC = () => {
+  const [currentAccounts, setCurrentAccounts] = useState<any>(null);
+  const [currentLinkName, setCurrentLinkName] = useState<string>("");
+
   return (
     <>
       <Helmet>
@@ -27,8 +29,15 @@ function BelvoLinksDashboard() {
           spacing={4}
         >
           <Grid item lg={12} xs={12}>
-            <LinkedAccounts />
+            <Links setCurrentLinkName={setCurrentLinkName} setCurrentAccounts={setCurrentAccounts} />
           </Grid>
+          {
+            currentLinkName ? (
+              <Grid item lg={12} xs={12}>
+                <Accounts currentLinkName={currentLinkName} currentAccounts={currentAccounts} />
+              </Grid>
+            ) : ('')
+          }
         </Grid>
       </Container>
       <Footer />

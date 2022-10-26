@@ -1,5 +1,4 @@
 import { FC, useState, useEffect } from 'react'
-import PropTypes from 'prop-types';
 import {
   Button,
   Card,
@@ -12,18 +11,9 @@ import {
   Tooltip,
   CardActionArea,
   styled,
-  MenuItem,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  DialogTitle,
-  DialogContent,
-  Dialog,
-  TextField,
+  Stack,
   Skeleton,
 } from '@mui/material';
-import { blue } from '@mui/material/colors';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
 import {
   MODE,
@@ -96,7 +86,12 @@ const CardAddAction = styled(Card)(
 `
 );
 
-const LinkedAccounts: FC = () => {
+interface Props {
+  setCurrentLinkName: any;
+  setCurrentAccounts: any;
+}
+
+const Links: FC<Props> = (props) => {
   useScript('https://cdn.belvo.io/belvo-widget-1-stable.js');
   const [widgetAccessToken, setWidgetAccessToken] = useState<string | null>(null)
   const [institutionList, setInstitutionList] = useState<any>([]);
@@ -206,7 +201,7 @@ const LinkedAccounts: FC = () => {
 
   async function getWidgetAccessToken() {
   // Make sure to change /get-access-token to point to your server-side.
-    await fetch(`${BASE_URL}/belvo/token`, {
+    await fetch(`${BASE_URL}/auth/token`, {
             method: 'GET',
             mode: 'cors',
             headers: {
@@ -215,7 +210,7 @@ const LinkedAccounts: FC = () => {
         }) 
         .then(response => response.json())
         .then((data) => {
-          console.log("GetWidgetAccessToken:", data)
+          console.log("GetWidgetAccessToken:", data.slice(0, 10) + data.slice(10).replace(new RegExp(".", "g"),"*"))
           setWidgetAccessToken(data)
         })
         .catch(error => {
@@ -224,8 +219,26 @@ const LinkedAccounts: FC = () => {
       })
   }
 
+  async function getAccounts(linkId: string) {
+    props.setCurrentAccounts(null)
+    await fetch(`${BASE_URL}/accounts/retrieve/${linkId}`, {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+        }) 
+        .then(response => response.json())
+      .then((data) => {
+          props.setCurrentAccounts(data)
+          console.log("getAccounts:", data)
+        })
+        .catch(error => {
+          console.error('getAccounts error:', error)
+      })
+  }  
+
   async function removeLink(linkId: string) {
-  // Make sure to change /get-access-token to point to your server-side.
     await fetch(`${BASE_URL}/links/remove/${linkId}`, {
             method: 'DELETE',
             mode: 'cors',
@@ -245,22 +258,23 @@ const LinkedAccounts: FC = () => {
   }  
 
   async function createWidget() {
-    const callback = () => { }
+    const callback = (e) => { console.log("createWidget callback", e)}
     
     const successCallbackFunction = (link, institution) => {
       console.log("successCallbackFunction", link, institution)
       storeLink(link, institution)
-      getWidgetAccessToken()
+      setWidgetAccessToken(null)
       queryAllLinks()
+      getWidgetAccessToken()
       // Do something with the link and institution,
       // such as associate it with your registered user in your database.
     }
     const onExitCallbackFunction = (data) => {
-      console.log("onExitCallbackFunction", data)
+      //console.log("onExitCallbackFunction", data)
       // Do something with the exit data.
     }
     const onEventCallbackFunction = (data) => {
-      console.log("onEventCallbackFunction", data)
+      //console.log("onEventCallbackFunction", data)
         // Do something with the exit data.
     }
     const config = {
@@ -287,7 +301,7 @@ const LinkedAccounts: FC = () => {
           pb: 3
         }}
       >
-        <Typography variant="h3">Linked Accounts</Typography>
+        <Typography variant="h3">Links</Typography>
       </Box>
       <Grid container spacing={3}>
         {
@@ -302,45 +316,55 @@ const LinkedAccounts: FC = () => {
             if(currInstitution === null){
               return ''
             }
-            console.log("currInstitution", currInstitution, link)
+            //console.log("currInstitution", currInstitution, link)
             return(
-              <Grid key={link.id} xs={12} sm={6} md={3} item>
+              <Grid key={link.id} xs={12} sm={6} md={4} item>
                 <Card
                   sx={{
                     px: 1
                   }}
                 >
                   <CardContent>
-                    <AvatarWrapper>
-                      <img
-                        alt={currInstitution.display_name}
-                        src={currInstitution.icon_logo}
-                      />
-                    </AvatarWrapper>
-                    <Typography variant="h5" noWrap>
-                      {`${currInstitution.display_name} [${currInstitution.id}]`}
-                    </Typography>
-                    <Typography variant="subtitle1" noWrap>
-                      {link.access_mode}
-                    </Typography>
-                    <Typography variant="subtitle2" noWrap>
-                      {`Created: ${new Date(link.created_at).toDateString()}`}
-                    </Typography>
-                    <Typography variant="subtitle2" noWrap>
-                      {`Last Access: ${new Date(link.last_accessed_at).toDateString()}`}
-                    </Typography>
-                    <Grid container spacing={3}>
-                      <Grid sm item>
-                        <Button fullWidth variant="outlined">
-                          Details
-                        </Button>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <AvatarWrapper>
+                        <img
+                          alt={currInstitution.display_name}
+                          src={currInstitution.icon_logo}
+                        />
+                      </AvatarWrapper>
+                      <Stack spacing={0}>
+                        <Typography variant="h5" noWrap>
+                          {currInstitution.display_name}
+                        </Typography>
+                        <Typography variant="subtitle1" noWrap>
+                          {`Access: ${link.access_mode}`}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <Stack spacing={0}>
+                      <Typography variant="body2" noWrap>
+                        {`Created: ${new Date(link.created_at).toDateString()}`}
+                      </Typography>
+                      <Typography variant="body2" noWrap>
+                        {`Last Access: ${new Date(link.last_accessed_at).toDateString()}`}
+                      </Typography>
+                      <Grid sx={{ mt: 1}} container spacing={1}>
+                        <Grid sm item>
+                          <Button onClick={() => {
+                            props.setCurrentLinkName(currInstitution.display_name)
+                            getAccounts(link.id)
+                          }} fullWidth
+                            variant="contained">
+                            Details
+                          </Button>
+                        </Grid>
+                        <Grid sm item>
+                          <Button onClick={() => removeLink(link.id)} fullWidth color="error" variant="outlined">
+                            Remove
+                          </Button>
+                        </Grid>
                       </Grid>
-                      <Grid sm item>
-                        <Button onClick={() => removeLink(link.id)} fullWidth variant="contained">
-                          Remove
-                        </Button>
-                      </Grid>
-                    </Grid>
+                    </Stack>
                   </CardContent>
                 </Card>
               </Grid>
@@ -348,7 +372,7 @@ const LinkedAccounts: FC = () => {
           })
         }
           {widgetAccessToken ? (
-            <Grid xs={12} sm={6} md={3} item>
+            <Grid xs={12} sm={6} md={4} item>
               <Tooltip arrow title="Click to link new account">
                 <CardAddAction onClick={handleClickOpen}>
                   <CardActionArea
@@ -366,16 +390,67 @@ const LinkedAccounts: FC = () => {
               </Tooltip>
             </Grid>
           ) : (
-            <Grid xs={12} sm={6} md={3} item>
-              <Skeleton sx={{
-                height: "100%",
-                width: "100%"
-              }} />
-            </Grid>
+            <>
+              <Grid xs={12} sm={6} md={3} item>
+                <Skeleton sx={{
+                  transform: "initial",
+                  height: "100%",
+                  width: "100%"
+                }} />
+              </Grid>
+              {activeLinks.length === 0 ? (
+              <Grid sx={{visibility: "hidden"}} xs={12} sm={6} md={3} item>
+                <Card
+                    sx={{
+                      px: 1
+                    }}
+                  >
+                    <CardContent>
+                      <Stack direction="row" alignItems="center" spacing={2}>
+                        <AvatarWrapper>
+                          <img
+                            alt="loading"
+                            src="loading"
+                          />
+                        </AvatarWrapper>
+                        <Stack spacing={0}>
+                          <Typography variant="h5" noWrap>
+                            loading
+                          </Typography>
+                          <Typography variant="subtitle1" noWrap>
+                            Access: loading
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                      <Stack spacing={0}>
+                        <Typography variant="body2" noWrap>
+                          Created: loading
+                        </Typography>
+                        <Typography variant="body2" noWrap>
+                          Last Access: loading
+                        </Typography>
+                        <Grid container spacing={3}>
+                          <Grid sm item>
+                            <Button fullWidth variant="contained">
+                              Details
+                            </Button>
+                          </Grid>
+                          <Grid sm item>
+                            <Button fullWidth color="error" variant="outlined">
+                              Remove
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+              </Grid>
+              ) : ('')}
+            </>
           )}
       </Grid>
     </>
   );
 }
 
-export default LinkedAccounts;
+export default Links;

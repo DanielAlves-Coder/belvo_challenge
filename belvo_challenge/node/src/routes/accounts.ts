@@ -17,19 +17,42 @@ const belvoClient = new belvo(
   MODE
 );
 
-router.get("/token", (req: Request, res: Response) => {
+router.get("/retrieve/:link_id?", (req: Request, res: Response) => {
+  if(req.params.link_id === ""){
+    res.status(500).send({ message: "Missing link_id" });
+  }
+
   belvoClient.connect()
-  .then(function () {
-        belvoClient.widgetToken.create()
-      .then((response) => {
-        res.json( response.access );
+    .then(function () {
+      belvoClient.accounts.retrieve(req.params.link_id ?? "")
+        .then((response) => {
+          res.json(response);
         })
-      .catch((error) => {
-      res.status(500).send({
-        message: error.message
+        .catch((error) => {
+          res.status(500).send({
+          message: error.message
+        });
       });
     });
 });
-} );
+
+router.get("/details/:account_id?", (req: Request, res: Response) => {
+  if(req.params.link_id === ""){
+    res.status(500).send({ message: "Missing account_id" });
+  }
+
+  belvoClient.connect()
+    .then(function () {
+      belvoClient.accounts.detail(req.params.account_id ?? "")
+        .then((response) => {
+          res.json(response);
+        })
+        .catch((error) => {
+          res.status(500).send({
+          message: error.message
+        });
+      });
+    });
+});
 
 export default router;
